@@ -55,14 +55,22 @@ end
 function _M:init_worker()
   ngx.log(ngx.INFO, "Initializing the underlying logger")
   if not logger.initted() then
-      local ok, err = logger.init{
+      -- default parameters
+      local params = {
           host = host,
           port = port,
           sock_type = proto,
           flush_limit = flush_limit,
-          drop_limit = drop_limit,
-          periodic_flush = periodic_flush
+          drop_limit = drop_limit
       }
+
+      -- periodic_flush == 0 means 'disable this feature'
+      if periodic_flush > 0 then
+        params["periodic_flush"] = periodic_flush
+      end
+
+      -- initialize the logger
+      local ok, err = logger.init(params)
       if not ok then
           ngx.log(ngx.ERR, "failed to initialize the logger: ", err)
       end
@@ -77,7 +85,7 @@ function do_log(payload)
   -- the Lua variable "msg"
   --
   -- do not forget the \n in order to have one request per line on the syslog server
-  -- 
+  --
   local bytes, err = logger.log(payload .. "\n")
   if err then
       ngx.log(ngx.ERR, "failed to log message: ", err)
