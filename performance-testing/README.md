@@ -6,7 +6,7 @@
 - Edit `apicast/conf/nginx.conf` to set `worker_connections` to a much reasonable setting for a development machine
 - Launch a development apicast with the following parameters:
 ```
-export APICAST_LOG_LEVEL=crit
+export APICAST_LOG_LEVEL=error
 export THREESCALE_CONFIG_FILE=config.json
 sudo sysctl -w kern.maxfiles=65536
 sudo sysctl -w kern.maxfilesperproc=65536
@@ -17,6 +17,9 @@ bin/apicast -i 3600 -m on -w 8 &> apicast.log
 
 **WARNING:** On MacOS, you have to run apicast **as root** to be able to push up
 the maximum number of open files (`ulimit -n`).
+
+**NOTE:** the `-w 8` tells nginx to start 8 workers. As a rule of thumb, set the
+number of workers to the number of available cores.
 
 - Install and run a rsyslog server:
 ```
@@ -63,14 +66,24 @@ Run the gatling scenario:
 gatling.sh -sf . -s itix.Apicast1kPOST
 ```
 
-Check that you have exactly 200000 lines in both `apicast.log`:
-- the one created by the apicast server
-- the one created by the rsyslog server
-
+Check that you have exactly 200000 lines in the `apicast.log` generated
+by the apicast server:
 ```
 $ wc -l apicast.log
   200000 apicast.log
 ```
+
+Also, check that you have exactly 200000 requests logged
+in `/tmp/apicast.log`:
+```
+$ grep -o '"http_version"' /tmp/apicast.log |wc -l
+  200000
+```
+
+**NOTE:** you might have to wait a few seconds after gatling completed the
+performance test to have the 200000 lines in the apicast.log.
+This is due to the SYSLOG_PERIODIC_FLUSH parameter (5 seconds by default)
+that is needed to flush the last requests from the log buffers.
 
 ## Reference
 
