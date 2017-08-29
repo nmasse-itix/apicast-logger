@@ -9,12 +9,27 @@ function _M.new()
   return setmetatable({}, mt)
 end
 
+local host
+local port
+local proto
+local flush_limit
+local drop_limit
+
+-- Parse and validate the parameters:
+--   SYSLOG_HOST => the hostname of the syslog server
+--   SYSLOG_PORT => the port of the syslog server
+--   SYSLOG_PROTOCOL => the protocol to use to connect to the syslog server (tcp or udp)
+--   SYSLOG_FLUSH_LIMIT => the minimum number of bytes in the buffer before sending logs to the syslog server
+--   SYSLOG_DROP_LIMIT => the maximum number of bytes in the buffer before starting to drop messages
+--   SYSLOG_PERIODIC_FLUSH => the number of seconds between each log flush (0 to disable)
+--
 function _M:init()
-  local host = os.getenv('SYSLOG_HOST')
-  local port = os.getenv('SYSLOG_PORT')
-  local proto = os.getenv('SYSLOG_PROTOCOL') or 'tcp'
-  local flush_limit = os.getenv('SYSLOG_FLUSH_LIMIT') or '0'
-  local drop_limit = os.getenv('SYSLOG_DROP_LIMIT') or '1048576'
+  host = os.getenv('SYSLOG_HOST')
+  port = os.getenv('SYSLOG_PORT')
+  proto = os.getenv('SYSLOG_PROTOCOL') or 'tcp'
+  flush_limit = os.getenv('SYSLOG_FLUSH_LIMIT') or '0'
+  periodic_flush = os.getenv('SYSLOG_PERIODIC_FLUSH') or '5'
+  drop_limit = os.getenv('SYSLOG_DROP_LIMIT') or '1048576'
 
   if (host == nil or host == "") then
     ngx.log(ngx.ERR, "The environment SYSLOG_HOST is NOT defined !")
@@ -27,8 +42,18 @@ function _M:init()
   port = tonumber(port)
   flush_limit = tonumber(flush_limit)
   drop_limit = tonumber(drop_limit)
-  ngx.log(ngx.WARN, "Sending custom logs to " .. proto .. "://" .. host .. ":" .. port .. " with flush_limit = " .. flush_limit .. " and drop_limit = " .. drop_limit)
+  periodic_flush = tonumber(periodic_flush)
 
+  ngx.log(ngx.WARN, "Sending custom logs to " .. proto .. "://" .. (host or "") .. ":" .. (port or "") .. " with flush_limit = " .. flush_limit .. " bytes, periodic_flush = " .. periodic_flush .. " sec. and drop_limit = " .. drop_limit .. " bytes")
+
+  return apicast:init()
+end
+
+-- Initialize the underlying logging module. Since the module calls 'timer_at'
+-- during initialization, we need to call it from a init_worker_by_lua block.
+--
+function _M:init_worker()
+  ngx.log(ngx.INFO, "Initializing the underlying logger")
   if not logger.initted() then
       local ok, err = logger.init{
           host = host,
@@ -36,20 +61,24 @@ function _M:init()
           sock_type = proto,
           flush_limit = flush_limit,
           drop_limit = drop_limit,
+          periodic_flush = periodic_flush
       }
       if not ok then
           ngx.log(ngx.ERR, "failed to initialize the logger: ", err)
       end
   end
 
-  return apicast:init()
+  return apicast:init_worker()
 end
 
 
 function do_log(payload)
   -- construct the custom access log message in
   -- the Lua variable "msg"
-  local bytes, err = logger.log(payload)
+  --
+  -- do not forget the \n in order to have one request per line on the syslog server
+  -- 
+  local bytes, err = logger.log(payload .. "\n")
   if err then
       ngx.log(ngx.ERR, "failed to log message: ", err)
   end

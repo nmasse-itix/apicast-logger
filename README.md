@@ -31,12 +31,13 @@ oc create configmap syslog-ng --from-file=syslog-ng.conf
 oc volume dc/syslog-ng --add --name=conf --mount-path /etc/syslog-ng/conf.d/ --type=configmap --configmap-name=syslog-ng
 ```
 
-Then, update your `apicast-{staging,production}` to embed the required code, module and environment variables.
+Then, update your `apicast-staging` to embed the required code,
+module and environment variables as explained:
 
 Put `resolver.conf` in `/opt/app-root/src/apicast.d/resolver.conf`:
 ```
-oc create configmap resolver --from-file=resolver.conf
-oc volume dc/apicast-staging --add --name=resolver --mount-path /opt/app-root/src/apicast.d/ --type=configmap --configmap-name=resolver
+oc create configmap apicast.d --from-file=resolver.conf
+oc volume dc/apicast-staging --add --name=apicastd --mount-path /opt/app-root/src/apicast.d/ --type=configmap --configmap-name=apicast.d
 ```
 
 Put the `lua-resty-logger-socket` module in `/opt/app-root/src/src/resty/logger/`:
@@ -48,8 +49,8 @@ oc volume dc/apicast-staging --add --name=lua-resty-logger-socket --mount-path /
 
 Put the `verbose.lua` module in `/opt/app-root/src/src/custom/`:
 ```
-oc create configmap apicast-logging --from-file=verbose.lua
-oc volume dc/apicast-staging --add --name=apicast-logging --mount-path /opt/app-root/src/src/custom/ --type=configmap --configmap-name=apicast-logging
+oc create configmap apicast-custom-module --from-file=verbose.lua
+oc volume dc/apicast-staging --add --name=apicast-custom-module --mount-path /opt/app-root/src/src/custom/ --type=configmap --configmap-name=apicast-custom-module
 ```
 
 Set the configuration required by `verbose.lua` as environment variables and re-deploy apicast:
@@ -57,9 +58,25 @@ Set the configuration required by `verbose.lua` as environment variables and re-
 oc env dc/apicast-staging APICAST_MODULE=custom/verbose
 oc env dc/apicast-staging SYSLOG_PROTOCOL=tcp
 oc env dc/apicast-staging SYSLOG_PORT=601
-oc env dc/apicast-staging SYSLOG_HOST=syslog-ng
+oc env dc/apicast-staging SYSLOG_HOST=syslog-ng.3scale.svc.cluster.local
 oc rollout latest apicast-staging
 ```
+
+**NOTE:** You need to adjust the value of `SYSLOG_HOST` to match your environment.
+Namely, make sure you are using a FQDN that resolves to your syslog server.
+If the syslog server is deployed in OpenShift, it needs to be in the same project
+as the apicast (of course, unless you are using a flat network...).
+
+In an OpenShift environment, the `SYSLOG_HOST` would look like:
+```
+<service-name>.<project>.svc.cluster.local
+```
+
+**WARNING:** You cannot use a short name (ie `syslog-ng`). It has to be a FQDN.
+This is because nginx does not rely on the standard glibc API `gethostbyname` but
+uses instead a custom resolver.
+
+Once, you get it to work on `apicast-staging`, you can do the same on `apicast-production`.
 
 ## Message format
 
@@ -110,23 +127,44 @@ The requests and responses are serialized as follow:
 
 First of all, setup your development environment as explained [here](https://github.com/3scale/apicast/tree/master#development--testing).
 
-Then, issue the following commands :
+Then, issue the following commands:
 ```
-git clone TODO
+git clone https://github.com/nmasse-itix/apicast-logger.git
 git clone https://github.com/3scale/apicast.git
 cd apicast
-git checkout -b 3.0-stable
 luarocks make apicast/*.rockspec --local
+ln -s ../apicast-logger custom
+```
+
+Configure your apicast as explained [here](https://github.com/3scale/apicast/blob/master/doc/parameters.md).
+```
 export THREESCALE_DEPLOYMENT_ENV=sandbox
 export THREESCALE_PORTAL_ENDPOINT=https://<YOUR-TOKEN-HERE>@<YOUR-TENANT-HERE>-admin.3scale.net
-export SYSLOG_HOST=localhost
-export SYSLOG_PORT=601
+export APICAST_LOG_LEVEL=debug
+```
+
+Configure the module:
+```
+export SYSLOG_HOST=127.0.0.1.xip.io
+export SYSLOG_PORT=1601
 export SYSLOG_PROTOCOL=tcp
-
-ln -s ../apicast-logger custom
 export APICAST_MODULE=custom/verbose
+```
 
-bin/apicast -vvvv -i 0 -m off
+Then, you need to register a resolver in the nginx configuration (example using the Google DNS):
+```
+cat <<EOF > apicast/apicast.d/resolver.conf
+resolver 8.8.8.8:
+```
+
+Finally, launch apicast:
+```
+bin/apicast -i 0 -m off
+```
+
+And in another terminal, launch netcat so that you can simulate a syslog server:
+```
+nc -l 1601
 ```
 
 ## Troubleshooting
