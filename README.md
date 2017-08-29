@@ -78,6 +78,43 @@ uses instead a custom resolver.
 
 Once, you get it to work on `apicast-staging`, you can do the same on `apicast-production`.
 
+## Performances
+
+The following section tries to evaluate the overhead of this module on apicast
+performances.
+
+Performance tests have been run on a vanilla apicast and an apicast with this
+module. Both tests have been run with 1k requests and responses and 10k requests
+and responses.
+
+All tests have been performed on the same hardware :
+ - Macbook Pro 15" Mid-2015
+ - 2,5 GHz Intel Core i7 (8 cores)
+ - 16 GB of RAM
+
+All components apicast + rsyslog ran on the same machine, directly on MacOS.
+All external systems (3scale backend, Echo API) have been simulated using
+the apicast built-in stubs.
+
+
+More information is available [here](performance-testing).
+
+The results are the following:
+
+| test | req / s | overhead |
+| --- | --- | --- |
+| 1K Request + Response - Vanilla | 7692 | - |
+| 1K Request + Response - with this module | 5882 | **- 23%** |
+| 10K Request + Response - Vanilla | 6250 | - |
+| 10K Request + Response - with this module | 3174 | **- 49%** |
+
+The results are not very surprising considering that the module needs to:
+ - read the full body of the request and the response
+ - encode them as base64
+ - serialize the whole data as JSON
+
+**TODO:** run performance tests to analyze the added latency
+
 ## Message format
 
 The requests and responses are serialized as follow:
