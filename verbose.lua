@@ -27,6 +27,7 @@ function _M:init()
   host = os.getenv('SYSLOG_HOST')
   port = os.getenv('SYSLOG_PORT')
   proto = os.getenv('SYSLOG_PROTOCOL') or 'tcp'
+  base64_flag = os.getenv('APICAST_PAYLOAD_BASE64') or 'true'
   flush_limit = os.getenv('SYSLOG_FLUSH_LIMIT') or '0'
   periodic_flush = os.getenv('SYSLOG_PERIODIC_FLUSH') or '5'
   drop_limit = os.getenv('SYSLOG_DROP_LIMIT') or '1048576'
@@ -103,12 +104,21 @@ function _M.body_filter()
     -- Gather information of the request
     local request = {}
     if ngx.var.request_body then
-      request["body"] = ngx.encode_base64(ngx.var.request_body)
+      if (base64_flag == 'true') then
+        request["body"] = ngx.encode_base64(ngx.var.request_body)
+      else
+        request["body"] = ngx.var.request_body
+      end
     end
     request["headers"] = ngx.req.get_headers()
     request["start_time"] = ngx.req.start_time()
     request["http_version"] = ngx.req.http_version()
-    request["raw"] = ngx.encode_base64(ngx.req.raw_header())
+    if (base64_flag == 'true') then
+      request["raw"] = ngx.encode_base64(ngx.req.raw_header())
+    else
+      request["raw"] = ngx.req.raw_header()
+    end
+
     request["method"] = ngx.req.get_method()
     request["uri_args"] = ngx.req.get_uri_args()
     request["request_id"] = ngx.var.request_id
@@ -117,7 +127,11 @@ function _M.body_filter()
     -- Gather information of the response
     local response = {}
     if ngx.ctx.buffered then
-      response["body"] = ngx.encode_base64(ngx.ctx.buffered)
+      if (base64_flag == 'true') then
+        response["body"] = ngx.encode_base64(ngx.ctx.buffered)
+      else
+        response["body"] = ngx.ctx.buffered
+      end
     end
     response["headers"] = ngx.resp.get_headers()
     response["status"] = ngx.status
