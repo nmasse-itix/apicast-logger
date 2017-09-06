@@ -191,7 +191,8 @@ export APICAST_MODULE=custom/verbose
 Then, you need to register a resolver in the nginx configuration (example using the Google DNS):
 ```
 cat <<EOF > apicast/apicast.d/resolver.conf
-resolver 8.8.8.8:
+resolver 8.8.8.8
+EOF
 ```
 
 Finally, launch apicast:
