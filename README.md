@@ -188,6 +188,11 @@ export SYSLOG_PROTOCOL=tcp
 export APICAST_MODULE=custom/verbose
 ```
 
+Plain text logging of payload without base64 encoding:
+```
+export APICAST_PAYLOAD_BASE64=false 
+```
+
 Then, you need to register a resolver in the nginx configuration (example using the Google DNS):
 ```
 cat <<EOF > apicast/apicast.d/resolver.conf
