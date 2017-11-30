@@ -117,26 +117,26 @@ The results are not very surprising considering that the module needs to:
 
 The requests and responses are serialized as follow:
 
-```
+```javascript
 {
   "request": {
-    "request_id": "3b1b0d[...]",           # The unique ID of the request
-    "raw": "R0VUIC8/dXN[...]",             # The raw request (request line + headers), base64 encoded
-    "headers": {                           # The request headers as an object
+    "request_id": "3b1b0d[...]",           // The unique ID of the request
+    "raw": "R0VUIC8/dXN[...]",             // The raw request (request line + headers), base64 encoded
+    "headers": {                           // The request headers as an object
       "host": "echo-api.3scale.net",
       "accept": "*/*",
       "user-agent": "curl/7.54.0"
     },
-    "body": "3b1b0d587[...]",              # The body of the request, base64 encoded
-    "method": "GET",                       # HTTP Method
-    "start_time": 1503929520.684,          # The time at which the request has been received
-    "uri_args": {                          # The decoded querystring as an object
+    "body": "3b1b0d587[...]",              // The body of the request, base64 encoded
+    "method": "GET",                       // HTTP Method
+    "start_time": 1503929520.684,          // The time at which the request has been received
+    "uri_args": {                          // The decoded querystring as an object
       "foo": "bar"
     },
-    "http_version": 1.1                    # The version of the HTTP protocol used to submit the request
+    "http_version": 1.1                    // The version of the HTTP protocol used to submit the request
   },
   "response": {
-    "headers": {                           # The response headers as an object
+    "headers": {                           // The response headers as an object
       "cache-control": "private",
       "content-type": "application/json",
       "x-content-type-options": "nosniff",
@@ -144,10 +144,10 @@ The requests and responses are serialized as follow:
       "content-length": "715",
       "vary": "Origin"
     },
-    "body": "ewogICJtZXRob2Qi[...]",       # The body of the response, base64 encoded
-    "status": 200                          # The HTTP Status Code
+    "body": "ewogICJtZXRob2Qi[...]",       // The body of the response, base64 encoded
+    "status": 200                          // The HTTP Status Code
   },
-  "upstream": {                            # See http://nginx.org/en/docs/http/ngx_http_upstream_module.html#variables
+  "upstream": {                            // See http://nginx.org/en/docs/http/ngx_http_upstream_module.html#variables
     "response_length": "715",
     "header_time": "0.352",                             
     "addr": "107.21.49.219:443",
