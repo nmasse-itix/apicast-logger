@@ -15,20 +15,18 @@ as JSON and sent to a syslog server.
 
 This projects requires :
 - an [Apicast](https://github.com/3scale/apicast/) gateway
-- a syslog server (such as [syslog-ng](https://github.com/balabit/syslog-ng) or [rsyslog](https://github.com/rsyslog/rsyslog))
+- a syslog server (such as [rsyslog](https://github.com/rsyslog/rsyslog))
 - the [lua-resty-logger-socket](https://github.com/cloudflare/lua-resty-logger-socket) module
 
 ## Installation
 
 If not already done, start your syslog server and configure it to listen
-for TCP connections on port 601. An exemple is given below with `syslog-ng`:
+for TCP connections on port 1601. An exemple is given below with the `rsyslog`
+daemon included in RHEL7 / CentOS7):
 
 ```
-oadm policy add-scc-to-user privileged -z default
-oc new-app balabit/syslog-ng --name syslog-ng
-oc volume dc/syslog-ng --add --name log --type emptyDir --mount-path /var/log/
-oc create configmap syslog-ng --from-file=syslog-ng.conf
-oc volume dc/syslog-ng --add --name=conf --mount-path /etc/syslog-ng/conf.d/ --type=configmap --configmap-name=syslog-ng
+oc new-app https://github.com/nmasse-itix/OpenShift-Docker-Images.git --context-dir rsyslog --name rsyslog
+oc volume dc rsyslog --add --overwrite --name=rsyslog-volume-1 -t pvc --claim-size=512Mi --claim-name=rsyslog-data --mount-path=/var/log/
 ```
 
 Then, update your `apicast-staging` to embed the required code,
@@ -57,8 +55,8 @@ Set the configuration required by `verbose.lua` as environment variables and re-
 ```
 oc env dc/apicast-staging APICAST_MODULE=custom/verbose
 oc env dc/apicast-staging SYSLOG_PROTOCOL=tcp
-oc env dc/apicast-staging SYSLOG_PORT=601
-oc env dc/apicast-staging SYSLOG_HOST=syslog-ng.3scale.svc.cluster.local
+oc env dc/apicast-staging SYSLOG_PORT=1601
+oc env dc/apicast-staging SYSLOG_HOST=rsyslog.3scale.svc.cluster.local
 oc rollout latest apicast-staging
 ```
 
@@ -72,7 +70,7 @@ In an OpenShift environment, the `SYSLOG_HOST` would look like:
 <service-name>.<project>.svc.cluster.local
 ```
 
-**WARNING:** You cannot use a short name (ie `syslog-ng`). It has to be a FQDN.
+**WARNING:** You cannot use a short name (ie `rsyslog`). It has to be a FQDN.
 This is because nginx does not rely on the standard glibc API `gethostbyname` but
 uses instead a custom resolver.
 
@@ -190,7 +188,7 @@ export APICAST_MODULE=custom/verbose
 
 Plain text logging of payload without base64 encoding:
 ```
-export APICAST_PAYLOAD_BASE64=false 
+export APICAST_PAYLOAD_BASE64=false
 ```
 
 Then, you need to register a resolver in the nginx configuration (example using the Google DNS):
@@ -219,6 +217,6 @@ a couple requests before seeing errors in the logs.
 
 If you need to troubleshoot DNS issue :
 ```
-dig syslog-ng.3scale.svc.cluster.local
-dig -p5353 @127.0.0.1 syslog-ng.3scale.svc.cluster.local
+dig rsyslog.3scale.svc.cluster.local
+dig -p5353 @127.0.0.1 rsyslog.3scale.svc.cluster.local
 ```
