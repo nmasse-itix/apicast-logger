@@ -18,6 +18,9 @@ This projects requires :
 - a syslog server (such as [syslog-ng](https://github.com/balabit/syslog-ng) or [rsyslog](https://github.com/rsyslog/rsyslog))
 - the [lua-resty-logger-socket](https://github.com/cloudflare/lua-resty-logger-socket) module
 
+This project has been tested with Apicast v3.2. It may work with newer or older version
+but it may require some minor changes.
+
 ## Installation
 
 If not already done, start your syslog server and configure it to listen
@@ -83,7 +86,7 @@ Once, you get it to work on `apicast-staging`, you can do the same on `apicast-p
 The following section tries to evaluate the overhead of this module on apicast
 performances.
 
-Performance tests have been run on a vanilla apicast and an apicast with this
+Performance tests have been run on a vanilla apicast 3.0 and an apicast with this
 module. Both tests have been run with 1k requests and responses and 10k requests
 and responses.
 
@@ -160,6 +163,40 @@ The requests and responses are serialized as follow:
 }
 ```
 
+## Configuration
+
+The following excerpt shows a sample configuration for this module, when used
+as a service policy.
+
+```javascript
+{
+  "services":[
+    {
+      "id":42,
+      "proxy":{
+        "policy_chain":[
+          {
+            "name":"custom.logger.verbose",       // the verbose policy that lays in the ./gateway/custom/logger/ directory
+            "configuration": {
+              "syslog_host": "syslog.acme.test",  // the hostname of the syslog server
+              "syslog_port": 1601,                // the port of the syslog server
+              "syslog_protocol": "tcp",           // the protocol to use to connect to the syslog server (tcp or udp)
+              "syslog_flush_limit": "0",          // the minimum number of bytes in the buffer before sending logs to the syslog server
+              "syslog_drop_limit": "1048576",     // the maximum number of bytes in the buffer before starting to drop messages
+              "syslog_periodic_flush": "5",       // the number of seconds between each log flush (0 to disable)
+              "payload_encoding": "base64"        // the algorithm used to encode the payload ('base64' or 'none')
+            }
+          },
+          {
+            "name":"apicast.policy.apicast"       // also keep the default apicast behavior
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
 ## Development
 
 First of all, setup your development environment as explained [here](https://github.com/3scale/apicast/tree/master#development--testing).
@@ -168,47 +205,37 @@ Then, issue the following commands:
 ```
 git clone https://github.com/nmasse-itix/apicast-logger.git
 git clone https://github.com/3scale/apicast.git
+git clone https://github.com/cloudflare/lua-resty-logger-socket.git
+export GIT_ROOT=$PWD
 cd apicast
 luarocks make apicast/*.rockspec --local
-ln -s ../apicast-logger custom
+mkdir gateway/src/custom
+ln -s $GIT_ROOT/apicast-logger/ gateway/src/custom/logger/
+cd gateway/src/resty
+ln -s $GIT_ROOT/lua-resty-logger-socket/lib/resty/logger/ logger
+cd -
 ```
 
-Configure your apicast as explained [here](https://github.com/3scale/apicast/blob/master/doc/parameters.md).
+Configure your apicast with a local configuration:
 ```
-export THREESCALE_DEPLOYMENT_ENV=sandbox
-export THREESCALE_PORTAL_ENDPOINT=https://<YOUR-TOKEN-HERE>@<YOUR-TENANT-HERE>-admin.3scale.net
+export THREESCALE_CONFIG_FILE=$GIT_ROOT/apicast-logger/config.json
 export APICAST_LOG_LEVEL=debug
-```
-
-Configure the module:
-```
-export SYSLOG_HOST=127.0.0.1.xip.io
-export SYSLOG_PORT=1601
-export SYSLOG_PROTOCOL=tcp
-export APICAST_MODULE=custom/verbose
-```
-
-Plain text logging of payload without base64 encoding:
-```
-export APICAST_PAYLOAD_BASE64=false 
-```
-
-Then, you need to register a resolver in the nginx configuration (example using the Google DNS):
-```
-cat <<EOF > apicast/apicast.d/resolver.conf
-resolver 8.8.8.8
-EOF
 ```
 
 Finally, launch apicast:
 ```
-bin/apicast -i 0 -m off
+bin/apicast --dev
 ```
 
 And in another terminal, launch netcat so that you can simulate a syslog server:
 ```
 nc -l 1601
 ```
+
+## References
+
+The following reading is recommended if you plan to develop on this module:
+ - [How to develop policies for Apicast](https://github.com/3scale/apicast/blob/master/doc/policies.md)
 
 ## Troubleshooting
 
