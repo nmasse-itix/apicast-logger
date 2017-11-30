@@ -18,9 +18,47 @@
         },
         "auth_user_key": "user_key",
         "credentials_location": "query",
+        "policy_chain": [
+          {
+            "name": "apicast.policy.apicast"
+          },
+          {
+            "name": "apicast.policy.phase_logger"
+          },
+          {
+            "name": "custom.logger.verbose",
+            "configuration": {
+              "syslog_host": "127.0.0.1.xip.io",
+              "syslog_port": "1601",
+              "syslog_protocol": "tcp",
+              "payload_encoding": "base64"
+            }
+          }
+        ],
         "proxy_rules": [
           {
+            "http_method": "GET",
+            "pattern": "/",
+            "metric_system_name": "hits",
+            "delta": 1,
+            "parameters": [],
+            "querystring_parameters": {}
+          },{
             "http_method": "POST",
+            "pattern": "/",
+            "metric_system_name": "hits",
+            "delta": 1,
+            "parameters": [],
+            "querystring_parameters": {}
+          },{
+            "http_method": "PUT",
+            "pattern": "/",
+            "metric_system_name": "hits",
+            "delta": 1,
+            "parameters": [],
+            "querystring_parameters": {}
+          },{
+            "http_method": "DELETE",
             "pattern": "/",
             "metric_system_name": "hits",
             "delta": 1,
